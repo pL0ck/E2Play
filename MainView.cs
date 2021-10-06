@@ -9,8 +9,9 @@ namespace E2Play
     {
 
         bool PieceListLoaded = false;
-        string ProgressFile = "E2PlayProgress2.e2p";
+        //string ProgressFile = "E2PlayProgress.e2p";
         string ConfigFile = "E2Play.cfg";
+        //string SaveInFolder;
         public MainView()
         {
             InitializeComponent();
@@ -26,11 +27,13 @@ namespace E2Play
 
         private void LoadConfig()
         {
-            if(!File.Exists(ConfigFile))
+            if (!File.Exists(ConfigFile))
             {
-                using(StreamWriter cfg=new StreamWriter(ConfigFile))
+                using (StreamWriter cfg = new StreamWriter(ConfigFile))
                 {
                     cfg.WriteLine(chkShowClues.Checked);
+                    cfg.WriteLine(chkPieceText.Checked);
+                    cfg.WriteLine(chkHideUselessPieces.Checked);
                 }
             }
             else
@@ -38,6 +41,8 @@ namespace E2Play
                 using (StreamReader icfg = new StreamReader(ConfigFile))
                 {
                     chkShowClues.Checked = Convert.ToBoolean(icfg.ReadLine());
+                    chkPieceText.Checked = Convert.ToBoolean(icfg.ReadLine());
+                    chkHideUselessPieces.Checked = Convert.ToBoolean(icfg.ReadLine());
                 }
             }
         }
@@ -69,7 +74,7 @@ namespace E2Play
             //We also need to cater for edges and corners
 
 
-            List<int> result = board1.GetListOfMatchingPieces(Row,Col);
+            List<int> result = board1.GetListOfMatchingPieces(Row, Col);
             PieceList.Items.Clear();
             PieceCount.Text = $"Count: {result.Count}";
             foreach (int p in result)
@@ -96,52 +101,87 @@ namespace E2Play
         private void chkShowClues_CheckedChanged(object sender, EventArgs e)
         {
             board1.ShowClues = chkShowClues.Checked;
+            SaveConfig();
         }
 
         private void btnReset_Click(object sender, EventArgs e)
         {
-            //Reset the board
-            board1.LoadBoard();
-            board1.ShowClues = chkShowClues.Checked;
-            UpdatePieceList(0, 0);
+            if (MessageBox.Show("Are you sure you want reset and clear the board?", "Reset board", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.Yes)
+            {
+                //Reset the board
+                board1.LoadBoard();
+                board1.ShowClues = chkShowClues.Checked;
+                UpdatePieceList(0, 0);
+            }
         }
 
         private void btnSave_Click(object sender, EventArgs e)
         {
 
+            if (SaveE2PFile.ShowDialog() != DialogResult.OK)
+                return;
+
             Progress E2Progress = new Progress();
             E2Progress.ShowClues = chkShowClues.Checked;
             E2Progress.SelectedTile = board1.GetSelectedTile();
             E2Progress.PlacedPieces = board1.GetPlacedPieces();
+            E2Progress.ShowPieceText = chkPieceText.Checked;
 
-            BinarySerialization.WriteToBinaryFile<Progress>(ProgressFile, E2Progress);
-            MessageBox.Show($"Progress Saved to {ProgressFile}", "Progress Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            BinarySerialization.WriteToBinaryFile<Progress>(SaveE2PFile.FileName, E2Progress);
+            MessageBox.Show($"Progress Saved to {SaveE2PFile.FileName}", "Progress Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void btnLoad_Click(object sender, EventArgs e)
         {
-            if(!File.Exists(ProgressFile))
+            //ask user for file based on last save
+            if (OpenE2PFile.ShowDialog() == DialogResult.OK)
             {
-                MessageBox.Show($"File {ProgressFile} not found.\nYou need to save progress first before loading", "No Save found", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                if (MessageBox.Show("Are you sure you want to load and overwrite board?", "Load board", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.Yes)
+                {
+                    Progress E2Progress = BinarySerialization.ReadFromBinaryFile<Progress>(OpenE2PFile.FileName);
+                    chkShowClues.Checked = E2Progress.ShowClues;
+                    board1.SetSelectionTile(E2Progress.SelectedTile);
+                    board1.SetPlacedPieces(E2Progress.PlacedPieces);
+                    chkPieceText.Checked = E2Progress.ShowPieceText;
+                    board1.ResetBoard();
+                }
             }
-
-            if(MessageBox.Show("Are you sure you want to load and overwrite board?","Load board",MessageBoxButtons.YesNo,MessageBoxIcon.Question,MessageBoxDefaultButton.Button2) == DialogResult.Yes)
-            {
-                Progress E2Progress = BinarySerialization.ReadFromBinaryFile<Progress>(ProgressFile);
-                chkShowClues.Checked = E2Progress.ShowClues;
-                board1.SetSelectionTile(E2Progress.SelectedTile);
-                board1.SetPlacedPieces(E2Progress.PlacedPieces);
-                board1.ResetBoard();
-            }                
         }
 
         private void MainViewClosing(object sender, FormClosingEventArgs e)
         {
-            using (StreamWriter cfg = new StreamWriter(ConfigFile))
+            SaveConfig();
+        }
+
+        private void chkPieceText_CheckedChanged(object sender, EventArgs e)
+        {
+            board1.ShowPieceText = chkPieceText.Checked;
+            SaveConfig();
+            board1.Refresh();
+        }
+
+        private void chkHideUselessPieces_CheckedChanged(object sender, EventArgs e)
+        {
+            board1.HidePiecesWithZeroSurround = chkHideUselessPieces.Checked;
+            SaveConfig();
+        }
+
+        private void SaveConfig()
+        {
+            try
             {
-                cfg.WriteLine(chkShowClues.Checked);
+                using (StreamWriter cfg = new StreamWriter(ConfigFile))
+                {
+                    cfg.WriteLine(chkShowClues.Checked);
+                    cfg.WriteLine(chkPieceText.Checked);
+                    cfg.WriteLine(chkHideUselessPieces.Checked);
+                }
             }
+            catch
+            {
+
+            }
+
         }
     }
 }

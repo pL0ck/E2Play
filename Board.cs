@@ -49,9 +49,12 @@ namespace E2Play
         TileSelector SelectedTile;
         TileSelector HighlightedTile;
         Pen SurroundPen;
+        Font PieceFont;
+        SolidBrush PieceBrush;
+        Pen PieceFontBackground;
 
         List<SurroundingPieces> HighlightSurround = new List<SurroundingPieces> { };
-        
+        public List<int> PossiblePieces { get; set; }
 
         public event EventHandler<TileLocationEventArgs> TileSelected;
         protected virtual void OnTileSelected(TileLocationEventArgs e)
@@ -93,6 +96,9 @@ namespace E2Play
                 }
             }
         }
+        public bool HidePiecesWithZeroSurround { get; set; }
+
+        public bool ShowPieceText { get; set; }
 
         public Board()
         {
@@ -104,17 +110,33 @@ namespace E2Play
             InitialiseBoard();
             InitialiseSelectors();
             IsInitialised = true;
+
+            //Set the initial selection and highlight;
+            HighlightedTile.Row = 0;
+            HighlightedTile.Col = 0;
+            SelectedTile.Row = HighlightedTile.Row;
+            SelectedTile.Col = HighlightedTile.Col;
+
+            //Get the initial list of possible pieces
+            PossiblePieces = GetListOfMatchingPieces(SelectedTile.Row, SelectedTile.Col);
+            UpdateSurrounds(SelectedTile.Row, SelectedTile.Col);
+
             Refresh();
         }
 
         private void InitialiseBoard()
         {
+            PossiblePieces = new List<int> { };
             for (int row = 0; row < 16; row++)
             {
                 for (int col = 0; col < 16; col++)
                 {
                     PlacedPieces[row, col] = 0;
                 }
+            }
+            for (int i = 0; i < 1024; i++)
+            {
+                E2Pieces.ClearPieceInUse(i + 1);
             }
         }
 
@@ -131,7 +153,7 @@ namespace E2Play
             HighlightedTile.SelectorPen = new Pen(Color.White, PenSize)
             {
                 Alignment = System.Drawing.Drawing2D.PenAlignment.Inset,
-                DashStyle=System.Drawing.Drawing2D.DashStyle.Solid
+                DashStyle = System.Drawing.Drawing2D.DashStyle.Solid
             };
             HighlightedTile.Row = 0;
             HighlightedTile.Col = 0;
@@ -141,12 +163,32 @@ namespace E2Play
                 Alignment = System.Drawing.Drawing2D.PenAlignment.Inset,
                 DashStyle = System.Drawing.Drawing2D.DashStyle.Dash
             };
+            PieceFont = new Font("Tahoma", 8, FontStyle.Bold);
+
+            PieceBrush = new SolidBrush(Color.Black);
+            PieceFontBackground = new Pen(new SolidBrush(Color.FromArgb(224, 255, 255, 255)));
+
+        }
+
+        private string PieceToString(int PieceNumber)
+        {
+            string result;
+
+            int ActualPiece = PieceNumber % 256;
+            result = ActualPiece.ToString();
+            int Rotation = PieceNumber / 256;
+            if (Rotation > 0)
+                result = $"{result}/{Rotation}";
+
+
+            return result;
         }
 
         protected override void OnPaintBackground(PaintEventArgs pe)
         {
             if (!IsInitialised)
                 return;
+            string PieceText;
 
             //First we need to loop through the placed pieces and draw
             for (int row = 0; row < 16; row++)
@@ -154,7 +196,21 @@ namespace E2Play
                 for (int col = 0; col < 16; col++)
                 {
                     //Calculate the X & Y coord based on Row & Col
-                    pe.Graphics.DrawImage(E2Pieces.GetPiece(PlacedPieces[row, col]), col*TileSize, row*TileSize, TileSize,TileSize);
+                    pe.Graphics.DrawImage(E2Pieces.GetPiece(PlacedPieces[row, col]), col * TileSize, row * TileSize, TileSize, TileSize);
+                    if (PlacedPieces[row, col] > 0 && ShowPieceText)
+                    {
+                        PieceText = PieceToString(PlacedPieces[row, col]);
+                        // Measure string.
+                        SizeF TextSize = new SizeF();
+                        TextSize = pe.Graphics.MeasureString(PieceText, PieceFont);
+
+                        pe.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(224, 255, 255, 255)), col * TileSize + ((TileSize / 2) - (TextSize.Width / 2)), row * TileSize + ((TileSize / 2) - (TextSize.Height / 2)), TextSize.Width, TextSize.Height);
+                        //Add the piece number
+                        //First get the x & y for the rectangle
+                        pe.Graphics.DrawString(PieceText, PieceFont, PieceBrush, col * TileSize + ((TileSize / 2) - (TextSize.Width / 2)), row * TileSize + ((TileSize / 2) - (TextSize.Height / 2)));
+
+                    }
+
                 }
             }
 
@@ -163,9 +219,9 @@ namespace E2Play
 
             //and also our highlight
             pe.Graphics.DrawRectangle(HighlightedTile.SelectorPen, HighlightedTile.Col * TileSize, HighlightedTile.Row * TileSize, TileSize, TileSize);
-            
+
             //Now look at our highlights and add those too
-            if(HighlightSurround.Count>0)
+            if (HighlightSurround.Count > 0)
             {
                 foreach (SurroundingPieces sp in HighlightSurround)
                 {
@@ -174,7 +230,7 @@ namespace E2Play
                     switch (sp.PieceCount)
                     {
                         case 0:
-                            SurroundPen.Color = Color.FromArgb(255,0,0);
+                            SurroundPen.Color = Color.FromArgb(255, 0, 0);
                             break;
                         case 1:
                             SurroundPen.Color = Color.FromArgb(255, 128, 128);
@@ -192,6 +248,25 @@ namespace E2Play
                     pe.Graphics.DrawRectangle(SurroundPen, sp.Col * TileSize, sp.Row * TileSize, TileSize, TileSize);
                 }
             }
+        }
+
+        public bool PieceHasZeroInSurround(int PieceNumber, int Row, int Col)
+        {
+            //First save off our current piece on the selected tile
+            //Also any current highlight
+            int TempPlacedPiece = PlacedPieces[Row, Col];
+            //List<SurroundingPieces> TempHighlights = HighlightSurround;
+
+            bool ZeroResult = false;
+            //Now put our piece there and check surrounds
+            PlacedPieces[Row, Col] = PieceNumber;
+            UpdateSurrounds(Row, Col);
+
+            HighlightSurround.ForEach(x => { if (x.PieceCount == 0) ZeroResult = true; });
+
+            //HighlightSurround= TempHighlights;
+            PlacedPieces[Row, Col] = TempPlacedPiece;
+            return ZeroResult;
         }
 
         private void UpdateSurrounds(int Row, int Col)
@@ -395,8 +470,22 @@ namespace E2Play
                 SelectedTile.Row = HighlightedTile.Row;
                 SelectedTile.Col = HighlightedTile.Col;
 
+                //Now get the pieces that can go here
+                //PossiblePieces.Clear();
+                PossiblePieces = GetListOfMatchingPieces(SelectedTile.Row, SelectedTile.Col);
+
+                //Now go through and remove anything where it has a surround of 0
+                if (HidePiecesWithZeroSurround)
+                {
+                    for (int i = PossiblePieces.Count - 1; i >= 0; i--)
+                    {
+                        if (PieceHasZeroInSurround(PossiblePieces[i], SelectedTile.Row, SelectedTile.Col))
+                            PossiblePieces.RemoveAt(i);
+                    }
+                }
+
                 UpdateSurrounds(SelectedTile.Row, SelectedTile.Col);
- 
+
                 TileLocationEventArgs SelectionData = new TileLocationEventArgs
                 {
                     Row = SelectedTile.Row,
@@ -414,9 +503,20 @@ namespace E2Play
                     return;
 
                 //Get the tile and mark it not in use
-                E2Pieces.ClearPieceInUse(PlacedPieces[HighlightedTile.Row, HighlightedTile.Col]);
+                ClearPieceAt(HighlightedTile.Row, HighlightedTile.Col);
 
-                PlacedPieces[HighlightedTile.Row, HighlightedTile.Col] = 0;
+                PossiblePieces = GetListOfMatchingPieces(HighlightedTile.Row, HighlightedTile.Col);
+
+                //Now go through and remove anything where it has a surround of 0
+                if (HidePiecesWithZeroSurround)
+                {
+                    for (int i = PossiblePieces.Count - 1; i >= 0; i--)
+                    {
+                        if (PieceHasZeroInSurround(PossiblePieces[i], HighlightedTile.Row, HighlightedTile.Col))
+                            PossiblePieces.RemoveAt(i);
+                    }
+                }
+
                 UpdateSurrounds(SelectedTile.Row, SelectedTile.Col);
 
                 TileLocationEventArgs SelectionData = new TileLocationEventArgs
@@ -578,7 +678,7 @@ namespace E2Play
 
             return E2Pieces.GetMatchingPieces(PieceSearch.Top, PieceSearch.Right, PieceSearch.Bottom, PieceSearch.Left);
         }
-                
+
 
         public void PlacePiece(int PieceNumber)
         {
@@ -606,12 +706,12 @@ namespace E2Play
         public int GetPieceAt(int Row, int Col)
         {
             int PieceNumber = -1;
-            if(Row>=0 && Row <16 && Col>=0 && Col <16)
+            if (Row >= 0 && Row < 16 && Col >= 0 && Col < 16)
             {
                 //Have a valid board position
                 PieceNumber = PlacedPieces[Row, Col];
             }
-            return PieceNumber;                
+            return PieceNumber;
 
         }
 
@@ -659,7 +759,7 @@ namespace E2Play
                 for (int c = 0; c < 16; c++)
                 {
                     PlacedPieces[r, c] = pp[r, c];
-                    if(pp[r, c] !=0)
+                    if (pp[r, c] != 0)
                         E2Pieces.SetPieceInUse(pp[r, c]);
                 }
             }
@@ -684,14 +784,14 @@ namespace E2Play
             //Clear only if clues are already placed
             if (PlacedPieces[8, 7] == 651)
                 PlacedPieces[8, 7] = 0;
-            if (PlacedPieces[2,2] == 976)
-                PlacedPieces[2,2] = 0; 
-            if (PlacedPieces[2,13] == 1023)
-                PlacedPieces[2,13] = 0; 
-            if (PlacedPieces[13,2] == 949)
-                PlacedPieces[13,2] = 0; 
-            if (PlacedPieces[13,13] == 249)
-                PlacedPieces[13,13] = 0;
+            if (PlacedPieces[2, 2] == 976)
+                PlacedPieces[2, 2] = 0;
+            if (PlacedPieces[2, 13] == 1023)
+                PlacedPieces[2, 13] = 0;
+            if (PlacedPieces[13, 2] == 949)
+                PlacedPieces[13, 2] = 0;
+            if (PlacedPieces[13, 13] == 249)
+                PlacedPieces[13, 13] = 0;
             Refresh();
         }
     }

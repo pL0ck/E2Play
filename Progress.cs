@@ -11,5 +11,6 @@ namespace E2Play
         public int[] SelectedTile { get; set; }
         public int[,] PlacedPieces { get; set; }
 
+        public bool ShowPieceText { get; set; }
     }
 }
