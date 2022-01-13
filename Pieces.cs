@@ -13,7 +13,8 @@ namespace E2Play
             Corner = 0,
             Edge = 1,
             Internal = 2,
-            Clue = 3
+            Clue = 3,
+            Unknown = 4
         }
 
         struct PData
