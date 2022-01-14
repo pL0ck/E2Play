@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
-
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 
 namespace E2Play
 {
@@ -13,8 +13,7 @@ namespace E2Play
             Corner = 0,
             Edge = 1,
             Internal = 2,
-            Clue = 3,
-            Unknown = 4
+            Clue = 3
         }
 
         struct PData
@@ -27,11 +26,13 @@ namespace E2Play
             public int Bottom;
             public int Left;
         }
-        readonly int TileSize = 48;
+        readonly int TileSizeBig = 48;
+        readonly int TileSizeSmall = 32;
 
         PData PieceData;
         private static bool ImagesBuilt;
         private static Image[] AllPieces = new Image[1024];
+        private bool BigBoard;
 
         private static int[,] PieceFormat = new int[1024, 7] {{1,0,0,1,4,0,0},{2,0,0,1,2,0,0},{3,0,0,3,4,0,0},{4,0,0,4,3,0,0},{5,1,0,6,1,0,1},{6,1,0,19,3,0,1},{7,1,0,16,1,0,1},{8,1,0,16,5,0,1},{9,1,0,20,4,0,1},{10,1,0,9,2,0,1},{11,1,0,8,3,0,1},{12,1,0,22,2,0,1},{13,1,0,22,5,0,1},{14,1,0,11,2,0,1},{15,1,0,19,1,0,3},{16,1,0,15,4,0,3},
 {17,1,0,21,5,0,3},{18,1,0,13,5,0,3},{19,1,0,9,3,0,3},{20,1,0,8,3,0,3},{21,1,0,12,2,0,3},{22,1,0,10,1,0,3},{23,1,0,10,5,0,3},{24,1,0,14,1,0,3},{25,1,0,11,1,0,3},{26,1,0,6,3,0,4},{27,1,0,6,4,0,4},{28,1,0,19,4,0,4},{29,1,0,15,4,0,4},{30,1,0,9,5,0,4},{31,1,0,8,3,0,4},{32,1,0,14,4,0,4},
@@ -98,8 +99,13 @@ namespace E2Play
 {993,2,0,8,20,20,7},{994,2,0,8,20,9,13},{995,2,0,10,20,9,10},{996,2,0,22,20,12,13},{997,2,0,17,20,14,9},{998,2,0,22,20,14,7},{999,2,0,14,20,22,10},{1000,2,0,11,20,22,10},{1001,2,0,14,13,13,13},{1002,2,0,12,13,9,7},{1003,2,0,12,13,12,9},{1004,2,0,14,13,12,9},{1005,2,0,8,13,12,10},{1006,2,0,7,13,10,12},{1007,2,0,17,13,14,8},{1008,2,0,8,13,14,11},
 {1009,2,0,11,13,22,9},{1010,2,0,11,13,22,12},{1011,2,0,10,9,8,8},{1012,2,0,22,9,8,14},{1013,2,0,14,9,12,17},{1014,2,0,17,9,11,7},{1015,2,0,17,8,8,11},{1016,2,0,12,8,12,10},{1017,3,0,11,8,10,12},{1018,2,0,11,8,14,7},{1019,2,0,22,12,12,17},{1020,2,0,10,12,10,22},{1021,2,0,14,10,22,7},{1022,2,0,7,14,7,11},{1023,3,0,17,14,17,7},{1024,2,0,17,22,17,11}}
 ;
-        public Pieces()
+        public Pieces(int TileSize)
         {
+            if (TileSize == TileSizeBig)
+                BigBoard = true;
+            else
+                BigBoard = false;
+
             Console.WriteLine($"Images Built {ImagesBuilt}");
             if (ImagesBuilt)
                 return;
@@ -109,6 +115,38 @@ namespace E2Play
             }
 
             ImagesBuilt = true;
+        }
+
+        /// <summary>
+        /// Resize the image to the specified width and height.
+        /// </summary>
+        /// <param name="image">The image to resize.</param>
+        /// <param name="width">The width to resize to.</param>
+        /// <param name="height">The height to resize to.</param>
+        /// <returns>The resized image.</returns>
+        private Bitmap ResizeImage(Image image, int width, int height)
+        {
+            var destRect = new Rectangle(0, 0, width, height);
+            var destImage = new Bitmap(width, height);
+
+            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+            using (var graphics = Graphics.FromImage(destImage))
+            {
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                using (var wrapMode = new ImageAttributes())
+                {
+                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
+                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+                }
+            }
+
+            return destImage;
         }
 
         private Image BuildPiece(int PieceNumber)
@@ -127,17 +165,43 @@ namespace E2Play
                 Bottom = PieceFormat[PieceNumber, 5],
                 Left = PieceFormat[PieceNumber, 6]
             };
-            Bitmap Piece = new Bitmap(TileSize, TileSize);
-            using (Graphics g = Graphics.FromImage(Piece))
+
+            if(BigBoard)
             {
-                g.DrawImage(GetPattern(PieceData.Top, 0), 0, 0);
-                g.DrawImage(GetPattern(PieceData.Right, 1), 24, 0);
-                g.DrawImage(GetPattern(PieceData.Bottom, 2), 0, 24);
-                g.DrawImage(GetPattern(PieceData.Left, 3), 0, 0);
-                img = Piece;
+                Bitmap Piece = new Bitmap(TileSizeBig, TileSizeBig);
+                using (Graphics g = Graphics.FromImage(Piece))
+                {
+                    g.DrawImage(GetPattern(PieceData.Top, 0), 0, 0);
+                    g.DrawImage(GetPattern(PieceData.Right, 1), TileSizeBig/2, 0);
+                    g.DrawImage(GetPattern(PieceData.Bottom, 2), 0, TileSizeBig / 2);
+                    g.DrawImage(GetPattern(PieceData.Left, 3), 0, 0);
+                    img = Piece;
+                }
+            }
+            else
+            {
+                Bitmap Piece = new Bitmap(TileSizeSmall, TileSizeSmall);
+                using (Graphics g = Graphics.FromImage(Piece))
+                {
+                    g.DrawImage(ResizeImage(GetPattern(PieceData.Top, 0),TileSizeSmall, TileSizeSmall/2), 0, 0);
+                    g.DrawImage(ResizeImage(GetPattern(PieceData.Right, 1), TileSizeSmall/2, TileSizeSmall), TileSizeSmall / 2, 0);
+                    g.DrawImage(ResizeImage(GetPattern(PieceData.Bottom, 2), TileSizeSmall, TileSizeSmall / 2), 0, TileSizeSmall / 2);
+                    g.DrawImage(ResizeImage(GetPattern(PieceData.Left, 3), TileSizeSmall/2, TileSizeSmall), 0, 0);
+                    img = Piece;
+                }
             }
 
             return img;
+        }
+
+        public void TileSizeChanged(bool IsBig)
+        {
+            //We need to rebuild our images for the new board size
+            BigBoard = IsBig;
+            for (int i = 0; i < 1024; i++)
+            {
+                AllPieces[i] = BuildPiece(i + 1);
+            }
         }
 
         public Image GetPiece(int PieceNumber)
@@ -295,7 +359,7 @@ namespace E2Play
 
         public bool IsClue(int Pnum)
         {
-            return PieceFormat[Pnum - 1, 1] == 3 ? true : false;
+            return PieceFormat[Pnum - 1, 1] == 3;
         }
     }
 }

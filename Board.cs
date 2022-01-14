@@ -40,11 +40,11 @@ namespace E2Play
             }
         };
 
-        Pieces E2Pieces = new Pieces();
+        Pieces E2Pieces;
         PSearch PieceSearch = new PSearch();
 
         int[,] PlacedPieces = new int[16, 16];
-        readonly int TileSize = 48;
+        int TileSize = 32;
         bool IsInitialised = false;
         TileSelector SelectedTile;
         TileSelector HighlightedTile;
@@ -105,8 +105,14 @@ namespace E2Play
             InitializeComponent();
         }
 
-        public void LoadBoard()
+        public void LoadBoard(bool IsBigBoard)
         {
+            if (IsBigBoard)
+                TileSize = 48;
+            else
+                TileSize = 32;
+
+            E2Pieces = new Pieces(TileSize);
             InitialiseBoard();
             InitialiseSelectors();
             IsInitialised = true;
@@ -163,10 +169,29 @@ namespace E2Play
                 Alignment = System.Drawing.Drawing2D.PenAlignment.Inset,
                 DashStyle = System.Drawing.Drawing2D.DashStyle.Dash
             };
-            PieceFont = new Font("Tahoma", 8, FontStyle.Bold);
+            //if(TileSize == 48)
+            //    PieceFont = new Font("Tahoma", 8, FontStyle.Bold);
+            //else
+                PieceFont = new Font("Tahoma", 6, FontStyle.Bold);
 
             PieceBrush = new SolidBrush(Color.Black);
             PieceFontBackground = new Pen(new SolidBrush(Color.FromArgb(224, 255, 255, 255)));
+
+        }
+
+        public void BoardSizeChanged(bool IsBigBoard)
+        {
+            if (IsBigBoard)
+                TileSize = 48;
+            else
+                TileSize = 32;
+
+            E2Pieces.TileSizeChanged(IsBigBoard);
+
+            //Now redisplay the board
+            //and then the current piece layout
+            Invalidate();
+
 
         }
 

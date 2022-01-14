@@ -9,8 +9,10 @@ namespace E2Play
     {
 
         bool PieceListLoaded = false;
+        bool IsActive = false;
+
         //string ProgressFile = "E2PlayProgress.e2p";
-        string ConfigFile = "E2Play.cfg";
+        readonly string ConfigFile = "E2Play.cfg";
         //string SaveInFolder;
         public MainView()
         {
@@ -21,8 +23,15 @@ namespace E2Play
         private void MainLoad(object sender, EventArgs e)
         {
             Show();
-            LoadBoard();
             LoadConfig();
+
+            if (chkSize.Checked)
+                PieceList.SetTileSize(48);
+            else
+                PieceList.SetTileSize(32);
+
+            LoadBoard();
+            IsActive = true;
         }
 
         private void LoadConfig()
@@ -34,6 +43,7 @@ namespace E2Play
                     cfg.WriteLine(chkShowClues.Checked);
                     cfg.WriteLine(chkPieceText.Checked);
                     cfg.WriteLine(chkHideUselessPieces.Checked);
+                    cfg.WriteLine(chkSize.Checked);
                 }
             }
             else
@@ -43,13 +53,15 @@ namespace E2Play
                     chkShowClues.Checked = Convert.ToBoolean(icfg.ReadLine());
                     chkPieceText.Checked = Convert.ToBoolean(icfg.ReadLine());
                     chkHideUselessPieces.Checked = Convert.ToBoolean(icfg.ReadLine());
+                    chkSize.Checked=Convert.ToBoolean(icfg.ReadLine());
                 }
             }
+            AdjustSize(chkSize.Checked);
         }
 
         private void LoadBoard()
         {
-            board1.LoadBoard();
+            board1.LoadBoard(chkSize.Checked);
             board1.TileSelected += TileSelected;
             board1.TileCleared += TileCleared;
             board1.PiecePlaced += PiecePlaced;
@@ -109,7 +121,7 @@ namespace E2Play
             if (MessageBox.Show("Are you sure you want reset and clear the board?", "Reset board", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.Yes)
             {
                 //Reset the board
-                board1.LoadBoard();
+                board1.LoadBoard(chkSize.Checked);
                 board1.ShowClues = chkShowClues.Checked;
                 UpdatePieceList(0, 0);
             }
@@ -175,6 +187,7 @@ namespace E2Play
                     cfg.WriteLine(chkShowClues.Checked);
                     cfg.WriteLine(chkPieceText.Checked);
                     cfg.WriteLine(chkHideUselessPieces.Checked);
+                    cfg.WriteLine(chkSize.Checked);
                 }
             }
             catch
@@ -182,6 +195,44 @@ namespace E2Play
 
             }
 
+        }
+
+        private void chkSize_CheckedChanged(object sender, EventArgs e)
+        {
+            if(IsActive)
+            {
+                AdjustSize(chkSize.Checked);
+
+                //now tell board to refresh
+                board1.BoardSizeChanged(chkSize.Checked);
+                PieceList.SetTileSize(chkSize.Checked ? 48 : 32);
+                int[] sel = board1.GetSelectedTile();
+
+                UpdatePieceList(sel[0],sel[1]);
+                Invalidate();
+            }
+
+        }
+
+        private void AdjustSize(bool IsBig)
+        {
+            if(IsBig)
+            {
+                board1.Width = 768;
+                board1.Height = 768;
+                Width = 1067;
+                Height = 833;
+                PieceList.Height = 754;
+            }
+            else
+            {
+                board1.Width = 512;
+                board1.Height = 512;
+                Width = 813;
+                Height = 580;
+                PieceList.Height = 504;
+            }
+            SaveConfig();
         }
     }
 }
