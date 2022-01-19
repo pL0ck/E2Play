@@ -112,6 +112,9 @@ namespace E2Play
 
         private void chkShowClues_CheckedChanged(object sender, EventArgs e)
         {
+            if (!IsActive)
+                return;
+
             board1.ShowClues = chkShowClues.Checked;
             SaveConfig();
         }

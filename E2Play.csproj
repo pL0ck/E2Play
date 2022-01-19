@@ -8,7 +8,7 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>E2Play</RootNamespace>
     <AssemblyName>E2Play</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
@@ -93,76 +93,76 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\0.png" />
+    <EmbeddedResource Include="Resources\0.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\1.png" />
+    <EmbeddedResource Include="Resources\1.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\2.png" />
+    <EmbeddedResource Include="Resources\2.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\3.png" />
+    <EmbeddedResource Include="Resources\3.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\4.png" />
+    <EmbeddedResource Include="Resources\4.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\5.png" />
+    <EmbeddedResource Include="Resources\5.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\6.png" />
+    <EmbeddedResource Include="Resources\6.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\7.png" />
+    <EmbeddedResource Include="Resources\7.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\8.png" />
+    <EmbeddedResource Include="Resources\8.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\9.png" />
+    <EmbeddedResource Include="Resources\9.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\10.png" />
+    <EmbeddedResource Include="Resources\10.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\11.png" />
+    <EmbeddedResource Include="Resources\11.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\12.png" />
+    <EmbeddedResource Include="Resources\12.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\13.png" />
+    <EmbeddedResource Include="Resources\13.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\14.png" />
+    <EmbeddedResource Include="Resources\14.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\15.png" />
+    <EmbeddedResource Include="Resources\15.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\16.png" />
+    <EmbeddedResource Include="Resources\16.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\17.png" />
+    <EmbeddedResource Include="Resources\17.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\18.png" />
+    <EmbeddedResource Include="Resources\18.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\19.png" />
+    <EmbeddedResource Include="Resources\19.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\20.png" />
+    <EmbeddedResource Include="Resources\20.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\21.png" />
+    <EmbeddedResource Include="Resources\21.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\22.png" />
+    <EmbeddedResource Include="Resources\22.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\blank.png" />
+    <EmbeddedResource Include="Resources\blank.png" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="exe\" />
