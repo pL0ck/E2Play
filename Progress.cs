@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace E2Play
 {
@@ -10,7 +8,6 @@ namespace E2Play
         public bool ShowClues { get; set; }
         public int[] SelectedTile { get; set; }
         public int[,] PlacedPieces { get; set; }
-
         public bool ShowPieceText { get; set; }
     }
 }

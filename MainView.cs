@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 
@@ -10,6 +12,10 @@ namespace E2Play
 
         bool PieceListLoaded = false;
         bool IsActive = false;
+        int PlacedCount = 0;
+        ListViewItem PreviousListViewItem = null;
+
+        bool ProcessingItem = false;
 
         //string ProgressFile = "E2PlayProgress.e2p";
         readonly string ConfigFile = "E2Play.cfg";
@@ -22,16 +28,19 @@ namespace E2Play
 
         private void MainLoad(object sender, EventArgs e)
         {
-            Show();
+            //Show();
             LoadConfig();
-
-            if (chkSize.Checked)
-                PieceList.SetTileSize(48);
-            else
-                PieceList.SetTileSize(32);
-
             LoadBoard();
+            board1.ShowClues = chkShowClues.Checked;
+            if (chkShowClues.Checked)
+                PlacedCount = 5;
+
+            PieceList.SmallImageList=board1.GetCurrentImages();
+
+            UpdatePlacedPieces();
+
             IsActive = true;
+            Show();
         }
 
         private void LoadConfig()
@@ -53,7 +62,7 @@ namespace E2Play
                     chkShowClues.Checked = Convert.ToBoolean(icfg.ReadLine());
                     chkPieceText.Checked = Convert.ToBoolean(icfg.ReadLine());
                     chkHideUselessPieces.Checked = Convert.ToBoolean(icfg.ReadLine());
-                    chkSize.Checked=Convert.ToBoolean(icfg.ReadLine());
+                    chkSize.Checked = Convert.ToBoolean(icfg.ReadLine());
                 }
             }
             AdjustSize(chkSize.Checked);
@@ -62,24 +71,35 @@ namespace E2Play
         private void LoadBoard()
         {
             board1.LoadBoard(chkSize.Checked);
+
+            //Setup event callbacks
             board1.TileSelected += TileSelected;
             board1.TileCleared += TileCleared;
             board1.PiecePlaced += PiecePlaced;
-            UpdatePieceList(0, 0);
+
+            UpdatePieceList(0, 0,new List<int> { });
+        }
+
+        void UpdatePlacedPieces()
+        {
+            lblPiecesPlaced.Text = $"{PlacedCount}/256";
         }
 
         private void TileSelected(object sender, TileLocationEventArgs e)
         {
-            UpdatePieceList(e.Row, e.Col);
+            UpdatePieceList(e.Row, e.Col, e.PotentialPieces);
         }
 
         private void TileCleared(object sender, TileLocationEventArgs e)
         {
-            UpdatePieceList(e.Row, e.Col);
+            UpdatePieceList(e.Row, e.Col, e.PotentialPieces);
+            PlacedCount--;
+            UpdatePlacedPieces();
         }
 
-        private void UpdatePieceList(int Row, int Col)
+        private void UpdatePieceList(int Row, int Col, List<int> PossiblePieces)
         {
+            PieceList.BeginUpdate();
             PieceListLoaded = false;
             //Now get a list of tiles that fit the selection.
             //We need to look at the all the surrounding tiles
@@ -88,26 +108,19 @@ namespace E2Play
 
             List<int> result = board1.GetListOfMatchingPieces(Row, Col);
             PieceList.Items.Clear();
-            PieceCount.Text = $"Count: {result.Count}";
+            colHeader.Text = $"Count: {result.Count}";
             foreach (int p in result)
             {
-                PieceList.Items.Add(new PieceListItem(p, board1.GetPieceImage(p)));
+                PieceList.Items.Add(p.ToString(),p);
             }
-            PieceList.SelectedIndex = -1;
+            //PieceList.SelectedIndex = -1;
             PieceListLoaded = true;
-        }
-
-        private void PieceListSelected(object sender, EventArgs e)
-        {
-            if (PieceList.SelectedIndex == -1 || !PieceListLoaded)
-                return;
-
-            board1.PlacePiece(((PieceListItem)PieceList.Items[PieceList.SelectedIndex]).PieceNumber);
+            PieceList.EndUpdate();
         }
 
         private void PiecePlaced(object sender, TileLocationEventArgs e)
         {
-            UpdatePieceList(e.Row, e.Col);
+            //UpdatePieceList(e.Row, e.Col, e.PotentialPieces);
         }
 
         private void chkShowClues_CheckedChanged(object sender, EventArgs e)
@@ -126,7 +139,7 @@ namespace E2Play
                 //Reset the board
                 board1.LoadBoard(chkSize.Checked);
                 board1.ShowClues = chkShowClues.Checked;
-                UpdatePieceList(0, 0);
+                UpdatePieceList(0, 0, new List<int> { });
             }
         }
 
@@ -153,12 +166,66 @@ namespace E2Play
             {
                 if (MessageBox.Show("Are you sure you want to load and overwrite board?", "Load board", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.Yes)
                 {
-                    Progress E2Progress = BinarySerialization.ReadFromBinaryFile<Progress>(OpenE2PFile.FileName);
-                    chkShowClues.Checked = E2Progress.ShowClues;
-                    board1.SetSelectionTile(E2Progress.SelectedTile);
-                    board1.SetPlacedPieces(E2Progress.PlacedPieces);
-                    chkPieceText.Checked = E2Progress.ShowPieceText;
-                    board1.ResetBoard();
+                    //see if this is a backtracker save
+                    if (OpenE2PFile.FileName.EndsWith("E2O"))
+                    {
+                        //this is basic file with pieces in rows and columns
+                        using (StreamReader e2oFile = new StreamReader(OpenE2PFile.FileName))
+                        {
+                            string ldata = e2oFile.ReadLine();
+                            string[] col;
+                            int thepiecenumber;
+
+                            if (Convert.ToInt32(ldata) != 16)
+                            {
+                                MessageBox.Show("Can only read 16x16 saves at the moment", "Invalid save file", MessageBoxButtons.OK, MessageBoxIcon.Stop);
+                                return;
+                            }
+                            else
+                            {
+                                PlacedCount = 0;
+                                int[,] sp = new int[16, 16];
+                                for (int r = 0; r < 16; r++)
+                                {
+                                    ldata = e2oFile.ReadLine();
+                                    col = ldata.Split(new char[] { ',' });
+                                    for (int c = 0; c < 16; c++)
+                                    {
+                                        thepiecenumber = Convert.ToInt32(col[c]);
+                                        if (thepiecenumber == 1025 || thepiecenumber == 1026)
+                                            thepiecenumber = 0;
+                                        sp[r, c] = thepiecenumber;
+                                        if (thepiecenumber != 0)
+                                        {
+                                            PlacedCount++;
+                                            UpdatePlacedPieces();
+                                        }
+
+                                    }
+                                }
+                                board1.LoadBoard(chkSize.Checked);
+                                board1.ShowClues = chkShowClues.Checked;
+                                UpdatePieceList(0, 0, new List<int> { });
+                                board1.SetPlacedPieces(sp);
+                                board1.ResetBoard();
+                            }
+
+                        }
+                    }
+                    else
+                    {
+                        board1.LoadBoard(chkSize.Checked);
+                        board1.ShowClues = chkShowClues.Checked;
+                        UpdatePieceList(0, 0, new List<int> { });
+                        Progress E2Progress = BinarySerialization.ReadFromBinaryFile<Progress>(OpenE2PFile.FileName);
+                        chkShowClues.Checked = E2Progress.ShowClues;
+                        board1.SetSelectionTile(E2Progress.SelectedTile);
+                        board1.SetPlacedPieces(E2Progress.PlacedPieces);
+                        chkPieceText.Checked = E2Progress.ShowPieceText;
+                        board1.ResetBoard();
+                    }
+
+
                 }
             }
         }
@@ -202,16 +269,18 @@ namespace E2Play
 
         private void chkSize_CheckedChanged(object sender, EventArgs e)
         {
-            if(IsActive)
+            if (IsActive)
             {
                 AdjustSize(chkSize.Checked);
 
                 //now tell board to refresh
                 board1.BoardSizeChanged(chkSize.Checked);
-                PieceList.SetTileSize(chkSize.Checked ? 48 : 32);
-                int[] sel = board1.GetSelectedTile();
+                PieceList.SmallImageList = board1.GetCurrentImages();
+                //PieceList.SetTileSize(chkSize.Checked ? 48 : 32);
+                _ = board1.GetSelectedTile();
 
-                UpdatePieceList(sel[0],sel[1]);
+                //TODO: What
+                //UpdatePieceList(sel[0], sel[1]);
                 Invalidate();
             }
 
@@ -219,23 +288,71 @@ namespace E2Play
 
         private void AdjustSize(bool IsBig)
         {
-            if(IsBig)
+            if (IsBig)
             {
                 board1.Width = 768;
                 board1.Height = 768;
-                Width = 1067;
+                Width = 1103;
                 Height = 833;
-                PieceList.Height = 754;
+                PieceList.Height = 768;
             }
             else
             {
                 board1.Width = 512;
                 board1.Height = 512;
-                Width = 813;
+                Width = 849;
                 Height = 580;
-                PieceList.Height = 504;
+                PieceList.Height = 512;
             }
             SaveConfig();
+        }
+
+        private void PieceList_ItemMouseHover(object sender, ListViewItemMouseHoverEventArgs e)
+        {
+            if (PreviousListViewItem != null)
+            {
+                PreviousListViewItem.BackColor = Color.White;
+            }
+
+            e.Item.BackColor = Color.LightBlue;
+            PreviousListViewItem = e.Item;
+
+        }
+
+        private void PieceList_ItemSelectionChanged(object sender, ListViewItemSelectionChangedEventArgs e)
+        {
+            if (ProcessingItem | !PieceListLoaded)
+                return;
+            ProcessingItem = true;
+            PieceList.BeginUpdate();
+
+            ListViewItem itm=e.Item;
+
+            int[] SelectedSquare = board1.GetSelectedTile();
+
+            if (board1.GetPieceAt(SelectedSquare[0], SelectedSquare[1]) <= 0)
+            {
+                //No piece at location so add this new piece
+                board1.PlacePieceAt(Int32.Parse(itm.Text), SelectedSquare[0], SelectedSquare[1]);
+                PlacedCount++;
+                itm.Remove();
+            }
+            else
+            {
+                //There is already a piece here so add it back into the list
+                int CurrentPieceUnderSelection = board1.GetPieceAt(SelectedSquare[0], SelectedSquare[1]);
+                PieceList.Items.Add(CurrentPieceUnderSelection.ToString(), CurrentPieceUnderSelection);
+                board1.PlacePieceAt(Int32.Parse(itm.Text), SelectedSquare[0], SelectedSquare[1]);
+                itm.Remove();
+            }
+            //board1.PlacePiece(((PieceListItem)PieceList.Items[PieceList.SelectedIndex]).PieceNumber);
+
+            Console.WriteLine($"Selected: {e.ItemIndex}");
+            PieceList.EndUpdate();
+            UpdatePlacedPieces();
+            board1.UpdateSurrounds(SelectedSquare[0], SelectedSquare[1]);
+            board1.Refresh();
+            ProcessingItem = false;
         }
     }
 }

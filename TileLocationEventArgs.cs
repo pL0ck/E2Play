@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace E2Play
 {
@@ -8,6 +7,7 @@ namespace E2Play
     {
         public int Row;
         public int Col;
+        public List<int> PotentialPieces;
         public int Piece;
     }
 }

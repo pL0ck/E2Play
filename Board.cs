@@ -39,6 +39,8 @@ namespace E2Play
                 Left = -1;
             }
         };
+        
+        //Stopwatch sw;
 
         Pieces E2Pieces;
         PSearch PieceSearch = new PSearch();
@@ -53,7 +55,11 @@ namespace E2Play
         SolidBrush PieceBrush;
         Pen PieceFontBackground;
 
+        //Store our images in an array
+        private static Image[] AllPieces = new Image[1025];
+
         List<SurroundingPieces> HighlightSurround = new List<SurroundingPieces> { };
+
         public List<int> PossiblePieces { get; set; }
 
         public event EventHandler<TileLocationEventArgs> TileSelected;
@@ -100,6 +106,9 @@ namespace E2Play
 
         public bool ShowPieceText { get; set; }
 
+
+
+
         public Board()
         {
             InitializeComponent();
@@ -107,12 +116,14 @@ namespace E2Play
 
         public void LoadBoard(bool IsBigBoard)
         {
-            if (IsBigBoard)
-                TileSize = 48;
-            else
-                TileSize = 32;
+            TileSize = (IsBigBoard) ? 48 : 32;
+            //if (IsBigBoard)
+            //    TileSize = 48;
+            //else
+            //    TileSize = 32;
 
             E2Pieces = new Pieces(TileSize);
+            InitialiseImages();
             InitialiseBoard();
             InitialiseSelectors();
             IsInitialised = true;
@@ -128,6 +139,15 @@ namespace E2Play
             UpdateSurrounds(SelectedTile.Row, SelectedTile.Col);
 
             Refresh();
+        }
+
+        private void InitialiseImages()
+        {
+            ImageList PieceImages = E2Pieces.GetAllImages();
+            for (int i = 0; i < 1025; i++)
+            {
+                AllPieces[i] = PieceImages.Images[i];
+            }
         }
 
         private void InitialiseBoard()
@@ -181,12 +201,9 @@ namespace E2Play
 
         public void BoardSizeChanged(bool IsBigBoard)
         {
-            if (IsBigBoard)
-                TileSize = 48;
-            else
-                TileSize = 32;
-
+            TileSize = (IsBigBoard) ? 48 : 32;
             E2Pieces.TileSizeChanged(IsBigBoard);
+            InitialiseImages();
 
             //Now redisplay the board
             //and then the current piece layout
@@ -197,31 +214,39 @@ namespace E2Play
 
         private string PieceToString(int PieceNumber)
         {
-            string result;
+            //string result;
 
-            int ActualPiece = PieceNumber % 256;
-            result = ActualPiece.ToString();
-            int Rotation = PieceNumber / 256;
-            if (Rotation > 0)
-                result = $"{result}/{Rotation}";
+            //int ActualPiece = PieceNumber % 256;
+            //result = ActualPiece.ToString();
+            //int Rotation = PieceNumber / 256;
+            //if (Rotation > 0)
+            //    result = $"{result}/{Rotation}";
 
 
-            return result;
+            //return result;
+
+
+            return (PieceNumber / 256 > 0) ? $"{PieceNumber % 256}/{(int)(PieceNumber / 256)}" : $"{PieceNumber % 256}";
         }
 
         protected override void OnPaintBackground(PaintEventArgs pe)
         {
+            //long tm = 0;
             if (!IsInitialised)
                 return;
             string PieceText;
 
             //First we need to loop through the placed pieces and draw
+            //sw=Stopwatch.StartNew();
+            //tm=sw.ElapsedMilliseconds;
             for (int row = 0; row < 16; row++)
             {
                 for (int col = 0; col < 16; col++)
                 {
                     //Calculate the X & Y coord based on Row & Col
-                    pe.Graphics.DrawImage(E2Pieces.GetPiece(PlacedPieces[row, col]), col * TileSize, row * TileSize, TileSize, TileSize);
+                    pe.Graphics.DrawImage(AllPieces[PlacedPieces[row, col]], col * TileSize, row * TileSize, TileSize, TileSize);
+                    //Console.WriteLine("DrawImage {0}", sw.ElapsedMilliseconds);
+
                     if (PlacedPieces[row, col] > 0 && ShowPieceText)
                     {
                         PieceText = PieceToString(PlacedPieces[row, col]);
@@ -238,6 +263,8 @@ namespace E2Play
 
                 }
             }
+            //Console.WriteLine("OnPaint {0}",sw.ElapsedMilliseconds);
+            //sw.Stop();
 
             //Make sure to draw our selection as well
             pe.Graphics.DrawRectangle(SelectedTile.SelectorPen, SelectedTile.Col * TileSize, SelectedTile.Row * TileSize, TileSize, TileSize);
@@ -294,7 +321,7 @@ namespace E2Play
             return ZeroResult;
         }
 
-        private void UpdateSurrounds(int Row, int Col)
+        public void UpdateSurrounds(int Row, int Col)
         {
             //Lets look at all the empty spaces around this piece and see how many pieces are available
             HighlightSurround.Clear();
@@ -474,7 +501,6 @@ namespace E2Play
                 }
 
             }
-
         }
 
         private void BoardMouseClick(object sender, MouseEventArgs e)
@@ -515,7 +541,7 @@ namespace E2Play
                 {
                     Row = SelectedTile.Row,
                     Col = SelectedTile.Col,
-                    Piece = PlacedPieces[SelectedTile.Row, SelectedTile.Col]
+                    PotentialPieces=PossiblePieces
                 };
                 Refresh();
                 OnTileSelected(SelectionData);
@@ -730,13 +756,13 @@ namespace E2Play
 
         public int GetPieceAt(int Row, int Col)
         {
-            int PieceNumber = -1;
-            if (Row >= 0 && Row < 16 && Col >= 0 && Col < 16)
-            {
-                //Have a valid board position
-                PieceNumber = PlacedPieces[Row, Col];
-            }
-            return PieceNumber;
+            //int PieceNumber = -1;
+            //if (Row >= 0 && Row < 16 && Col >= 0 && Col < 16)
+            //{
+            //    //Have a valid board position
+            //    PieceNumber = PlacedPieces[Row, Col];
+            //}
+            return (Row >= 0 && Row < 16 && Col >= 0 && Col < 16) ? PlacedPieces[Row, Col] : -1;
 
         }
 
@@ -818,6 +844,11 @@ namespace E2Play
             if (PlacedPieces[13, 13] == 249)
                 PlacedPieces[13, 13] = 0;
             Refresh();
+        }
+
+        public ImageList GetCurrentImages()
+        {
+            return E2Pieces.GetAllImages();
         }
     }
 }
