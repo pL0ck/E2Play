@@ -214,18 +214,6 @@ namespace E2Play
 
         private string PieceToString(int PieceNumber)
         {
-            //string result;
-
-            //int ActualPiece = PieceNumber % 256;
-            //result = ActualPiece.ToString();
-            //int Rotation = PieceNumber / 256;
-            //if (Rotation > 0)
-            //    result = $"{result}/{Rotation}";
-
-
-            //return result;
-
-
             return (PieceNumber / 256 > 0) ? $"{PieceNumber % 256}/{(int)(PieceNumber / 256)}" : $"{PieceNumber % 256}";
         }
 
@@ -556,14 +544,14 @@ namespace E2Play
                 //Get the tile and mark it not in use
                 ClearPieceAt(HighlightedTile.Row, HighlightedTile.Col);
 
-                PossiblePieces = GetListOfMatchingPieces(HighlightedTile.Row, HighlightedTile.Col);
+                PossiblePieces = GetListOfMatchingPieces(SelectedTile.Row, SelectedTile.Col);
 
                 //Now go through and remove anything where it has a surround of 0
                 if (HidePiecesWithZeroSurround)
                 {
                     for (int i = PossiblePieces.Count - 1; i >= 0; i--)
                     {
-                        if (PieceHasZeroInSurround(PossiblePieces[i], HighlightedTile.Row, HighlightedTile.Col))
+                        if (PieceHasZeroInSurround(PossiblePieces[i], SelectedTile.Row, SelectedTile.Col))
                             PossiblePieces.RemoveAt(i);
                     }
                 }
@@ -620,10 +608,10 @@ namespace E2Play
             return PlacedPieces[Row, Col] != 0 ? E2Pieces.GetLeft(PlacedPieces[Row, Col]) : -1;
         }
 
-        public Image GetPieceImage(int PieceNumber)
-        {
-            return E2Pieces.GetPiece(PieceNumber);
-        }
+        //public Image GetPieceImage(int PieceNumber)
+        //{
+        //    return E2Pieces.GetPiece(PieceNumber);
+        //}
 
         public List<int> GetListOfMatchingPieces(int Row, int Col)
         {
@@ -756,12 +744,6 @@ namespace E2Play
 
         public int GetPieceAt(int Row, int Col)
         {
-            //int PieceNumber = -1;
-            //if (Row >= 0 && Row < 16 && Col >= 0 && Col < 16)
-            //{
-            //    //Have a valid board position
-            //    PieceNumber = PlacedPieces[Row, Col];
-            //}
             return (Row >= 0 && Row < 16 && Col >= 0 && Col < 16) ? PlacedPieces[Row, Col] : -1;
 
         }
