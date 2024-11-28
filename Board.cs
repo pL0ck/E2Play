@@ -562,6 +562,7 @@ namespace E2Play
                 {
                     Row = SelectedTile.Row,
                     Col = SelectedTile.Col,
+                    PotentialPieces=PossiblePieces,
                     Piece = PlacedPieces[HighlightedTile.Row, HighlightedTile.Col]
                 };
                 Refresh();
@@ -608,10 +609,6 @@ namespace E2Play
             return PlacedPieces[Row, Col] != 0 ? E2Pieces.GetLeft(PlacedPieces[Row, Col]) : -1;
         }
 
-        //public Image GetPieceImage(int PieceNumber)
-        //{
-        //    return E2Pieces.GetPiece(PieceNumber);
-        //}
 
         public List<int> GetListOfMatchingPieces(int Row, int Col)
         {
@@ -719,28 +716,28 @@ namespace E2Play
         }
 
 
-        public void PlacePiece(int PieceNumber)
-        {
-            //First see if we have a piece there aleady
-            //If we do we need to clear its use
-            if (PlacedPieces[SelectedTile.Row, SelectedTile.Col] != 0)
-                E2Pieces.ClearPieceInUse(PlacedPieces[SelectedTile.Row, SelectedTile.Col]);
+        //public void PlacePiece(int PieceNumber)
+        //{
+        //    //First see if we have a piece there aleady
+        //    //If we do we need to clear its use
+        //    if (PlacedPieces[SelectedTile.Row, SelectedTile.Col] != 0)
+        //        E2Pieces.ClearPieceInUse(PlacedPieces[SelectedTile.Row, SelectedTile.Col]);
 
-            PlacedPieces[SelectedTile.Row, SelectedTile.Col] = PieceNumber;
-            E2Pieces.SetPieceInUse(PieceNumber);
+        //    PlacedPieces[SelectedTile.Row, SelectedTile.Col] = PieceNumber;
+        //    E2Pieces.SetPieceInUse(PieceNumber);
 
-            UpdateSurrounds(SelectedTile.Row, SelectedTile.Col);
+        //    UpdateSurrounds(SelectedTile.Row, SelectedTile.Col);
 
-            TileLocationEventArgs SelectionData = new TileLocationEventArgs
-            {
-                Row = SelectedTile.Row,
-                Col = SelectedTile.Col,
-                Piece = PieceNumber
-            };
+        //    TileLocationEventArgs SelectionData = new TileLocationEventArgs
+        //    {
+        //        Row = SelectedTile.Row,
+        //        Col = SelectedTile.Col,
+        //        Piece = PieceNumber
+        //    };
 
-            Refresh();
-            OnPiecePlaced(SelectionData);
-        }
+        //    Refresh();
+        //    OnPiecePlaced(SelectionData);
+        //}
 
         public int GetPieceAt(int Row, int Col)
         {
@@ -797,6 +794,21 @@ namespace E2Play
                 }
             }
         }
+
+        public int CountPlacedPieces()
+        {
+            int piecesplaced = 0;
+            for (int r = 0; r < 16; r++)
+            {
+                for (int c = 0; c < 16; c++)
+                {
+                    if(PlacedPieces[r, c] >0)
+                        { piecesplaced++; }
+                }
+            }
+            return piecesplaced;
+        }
+
         public void ResetBoard()
         {
             Refresh();

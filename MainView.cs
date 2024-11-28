@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Windows.Forms;
 
 namespace E2Play
@@ -28,6 +29,7 @@ namespace E2Play
 
         private void MainLoad(object sender, EventArgs e)
         {
+            Text = $"E2Play (v{Application.ProductVersion})";
             //Show();
             LoadConfig();
             LoadBoard();
@@ -93,6 +95,7 @@ namespace E2Play
         private void TileCleared(object sender, TileLocationEventArgs e)
         {
             UpdatePieceList(e.Row, e.Col, e.PotentialPieces);
+            Debug.WriteLine("Piece count subracted");
             PlacedCount--;
             UpdatePlacedPieces();
         }
@@ -198,7 +201,7 @@ namespace E2Play
                                         if (thepiecenumber != 0)
                                         {
                                             PlacedCount++;
-                                            UpdatePlacedPieces();
+
                                         }
 
                                     }
@@ -208,6 +211,7 @@ namespace E2Play
                                 UpdatePieceList(0, 0, new List<int> { });
                                 board1.SetPlacedPieces(sp);
                                 board1.ResetBoard();
+                                UpdatePlacedPieces();
                             }
 
                         }
@@ -223,6 +227,8 @@ namespace E2Play
                         board1.SetPlacedPieces(E2Progress.PlacedPieces);
                         chkPieceText.Checked = E2Progress.ShowPieceText;
                         board1.ResetBoard();
+                        PlacedCount = board1.CountPlacedPieces();
+                        UpdatePlacedPieces();
                     }
 
 
@@ -329,9 +335,10 @@ namespace E2Play
             ListViewItem itm=e.Item;
 
             int[] SelectedSquare = board1.GetSelectedTile();
-
-            if (board1.GetPieceAt(SelectedSquare[0], SelectedSquare[1]) <= 0)
+            int CurrentPieceUnderSelection = board1.GetPieceAt(SelectedSquare[0], SelectedSquare[1]);
+            if (CurrentPieceUnderSelection <= 0)
             {
+                Debug.WriteLine("Adding a new piece");
                 //No piece at location so add this new piece
                 board1.PlacePieceAt(Int32.Parse(itm.Text), SelectedSquare[0], SelectedSquare[1]);
                 PlacedCount++;
@@ -339,15 +346,17 @@ namespace E2Play
             }
             else
             {
+                Debug.WriteLine("Replacing a piece");
                 //There is already a piece here so add it back into the list
-                int CurrentPieceUnderSelection = board1.GetPieceAt(SelectedSquare[0], SelectedSquare[1]);
+                //First make sure to make the old piece available again
+                board1.ClearPieceAt(SelectedSquare[0], SelectedSquare[1]);
                 PieceList.Items.Add(CurrentPieceUnderSelection.ToString(), CurrentPieceUnderSelection);
                 board1.PlacePieceAt(Int32.Parse(itm.Text), SelectedSquare[0], SelectedSquare[1]);
                 itm.Remove();
             }
             //board1.PlacePiece(((PieceListItem)PieceList.Items[PieceList.SelectedIndex]).PieceNumber);
 
-            Console.WriteLine($"Selected: {e.ItemIndex}");
+            //Console.WriteLine($"Selected: {e.ItemIndex}");
             PieceList.EndUpdate();
             UpdatePlacedPieces();
             board1.UpdateSurrounds(SelectedSquare[0], SelectedSquare[1]);
